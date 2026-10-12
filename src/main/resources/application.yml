@@ -1,0 +1,7 @@
+# logistics-simulator 기본 설정 (뼈대)
+server:
+  port: 8084
+
+spring:
+  application:
+    name: logistics-simulator
