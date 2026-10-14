@@ -7,7 +7,7 @@
 | 담당 | 김진아 |
 | 관련 기능 ID | E-13 logistics-simulator |
 | 기술 | Java 21, Spring Boot 3, Spring Cloud AWS (SQS) |
-| 관측성 | Actuator·Micrometer → Prometheus (`/actuator/prometheus`, 관리 포트 8081) · Micrometer Tracing → Zipkin · JSON 로그(traceId 포함) → Alloy → Loki ([gitops/platform/observability](https://github.com/sesac-freshlink/gitops/tree/main/platform/observability)) |
+| 관측성 | Actuator·Micrometer → Prometheus (앱 포트의 `/actuator/prometheus`, 관리 포트를 따로 두지 않는다. 모든 서비스가 8080) · Micrometer Tracing → Zipkin · JSON 로그(traceId 포함) → Alloy → Loki ([gitops/platform/observability](https://github.com/sesac-freshlink/gitops/tree/main/platform/observability)) |
 | DB | 없음 (더미 입고 데이터를 생성) |
 | 배포 | GitHub Actions → ECR `freshlink/logistics-simulator` → ArgoCD → EKS (파드 1개, 시연 때 사용) |
 
@@ -28,7 +28,7 @@ sequenceDiagram
     SIM->>Q1: INBOUND (점포, shipmentId, 상품, 수량, 유통기한)
     Q1->>INV: 점포별 순서대로 전달
     INV->>INV: 멱등 확인 → lot 생성 + 원장 '입고'
-    INV-->>OW: SSE 재고 변경
+    OW->>INV: 3초마다 재고 조회(폴링)로 변경 반영
 ```
 
 > 예: 새벽 5시, 시뮬레이터가 역삼점에 컵라면 20개(유통기한 10월 20일)와 우유 10개(10월 9일) 입고 쪽지를 보낸다. 점주가 출근하면 재고 화면에 유통기한별로 들어와 있다.
@@ -65,22 +65,19 @@ logistics-simulator/
 └── src/test/java/com/freshlink/simulator/
 ```
 
-## 5. 로컬에서 실행하기
+## 5. dev 환경에서 실행하기
 
 > 아직 뼈대만 있는 상태다. 첫 작업으로 [Spring Initializr](https://start.spring.io)에서 Gradle·Java 21·Web으로 프로젝트를 만들고 Spring Cloud AWS SQS를 추가한다.
 
-1. [local-dev](https://github.com/sesac-freshlink/local-dev)에서 `docker compose up -d` (LocalStack이 SQS 큐를 만든다)
-2. 이 레포에서
+개발할 때도 AWS dev 환경의 RDS·SQS·Cognito를 그대로 쓴다. AWS 로그인, DB 포트 포워딩(SSM), 개인 큐 설정은 [개발 환경 접속 가이드](https://github.com/sesac-freshlink/.github/blob/main/docs/개발환경-접속.md)를 따른다.
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=local'
+export SPRING_PROFILES_ACTIVE=dev
+export QUEUE_PREFIX=dev-<내 이름>-   # 개인 큐로 보낸다
+./gradlew bootRun
 ```
 
-3. 입고 실행 (예정 API)
-
-```bash
-curl -X POST http://localhost:8084/simulator/shipments
-```
+입고 실행 (예정 API): `POST /simulator/shipments`
 
 ## 6. 브랜치와 기여
 
