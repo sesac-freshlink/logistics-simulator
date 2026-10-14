@@ -65,22 +65,19 @@ logistics-simulator/
 └── src/test/java/com/freshlink/simulator/
 ```
 
-## 5. 로컬에서 실행하기
+## 5. dev 환경에서 실행하기
 
 > 아직 뼈대만 있는 상태다. 첫 작업으로 [Spring Initializr](https://start.spring.io)에서 Gradle·Java 21·Web으로 프로젝트를 만들고 Spring Cloud AWS SQS를 추가한다.
 
-1. [local-dev](https://github.com/sesac-freshlink/local-dev)에서 `docker compose up -d` (LocalStack이 SQS 큐를 만든다)
-2. 이 레포에서
+개발할 때도 AWS dev 환경의 RDS·SQS·Cognito를 그대로 쓴다. AWS 로그인, DB 포트 포워딩(SSM), 개인 큐 설정은 [개발 환경 접속 가이드](https://github.com/sesac-freshlink/.github/blob/main/docs/개발환경-접속.md)를 따른다.
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=local'
+export SPRING_PROFILES_ACTIVE=dev
+export QUEUE_PREFIX=dev-<내 이름>-   # 개인 큐로 보낸다
+./gradlew bootRun
 ```
 
-3. 입고 실행 (예정 API)
-
-```bash
-curl -X POST http://localhost:8084/simulator/shipments
-```
+입고 실행 (예정 API): `POST /simulator/shipments`
 
 ## 6. 브랜치와 기여
 
