@@ -1,6 +1,6 @@
 # logistics-simulator 기본 설정 (뼈대)
 server:
-  port: 8084
+  port: 8080
 
 spring:
   application:
