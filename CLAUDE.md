@@ -1,6 +1,6 @@
 # logistics-simulator - AI 작업 가이드
 
-> 가상의 물류센터. 점포별 입고 정보(INBOUND 쪽지)를 만들어 inventory-commands.fifo에 넣는다. 담당: 김진아. 포트 8084, DB 없음, 파드 1개.
+> 가상의 물류센터. 점포별 입고 정보(INBOUND 쪽지)를 만들어 inventory-commands.fifo에 넣는다. 담당: 김진아. 로컬 포트 8084 (쿠버네티스 8080), DB 없음, 파드 1개.
 
 ---
 
@@ -35,7 +35,7 @@
 ✅ 인증: gateway가 Cognito ID 토큰을 검증하고 X-User-Id(sub, UUID 문자열)·X-User-Role·X-Store-Id 헤더로 넘긴다. 서비스는 토큰을 다시 검증하지 않는다
 ✅ 실시간 재고: 점주 화면이 3초마다 GET /owner/inventory를 조회한다 (폴링)
 ✅ 주문 저장소 DynamoDB 도입은 검토 중, 미정. 어느 쪽도 가정하지 말고 사용자에게 묻는다
-✅ 관측성(서비스·gateway): Actuator(관리 포트 8081, health·prometheus), Micrometer Tracing → Zipkin, JSON 로그(traceId)
+✅ 관측성(서비스·gateway): Actuator는 앱 포트에 둔다 (관리 포트 따로 없음, management.server.port 쓰지 않음). 쿠버네티스는 모든 컨테이너 8080, 로컬은 서비스별 8080~8084. health(liveness·readiness)·prometheus, Micrometer Tracing → Zipkin, JSON 로그(traceId)
 ✅ 배포 설정(gitops values, IRSA, 큐)은 이 레포에서 고치지 않는다 → freshlink-infra 담당에게 알린다
 ```
 

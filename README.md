@@ -7,7 +7,7 @@
 | 담당 | 김진아 |
 | 관련 기능 ID | E-13 logistics-simulator |
 | 기술 | Java 21, Spring Boot 3, Spring Cloud AWS (SQS) |
-| 관측성 | Actuator·Micrometer → Prometheus (`/actuator/prometheus`, 관리 포트 8081) · Micrometer Tracing → Zipkin · JSON 로그(traceId 포함) → Alloy → Loki ([gitops/platform/observability](https://github.com/sesac-freshlink/gitops/tree/main/platform/observability)) |
+| 관측성 | Actuator·Micrometer → Prometheus (앱 포트의 `/actuator/prometheus`, 관리 포트를 따로 두지 않는다. 쿠버네티스에서는 모든 컨테이너가 8080) · Micrometer Tracing → Zipkin · JSON 로그(traceId 포함) → Alloy → Loki ([gitops/platform/observability](https://github.com/sesac-freshlink/gitops/tree/main/platform/observability)) |
 | DB | 없음 (더미 입고 데이터를 생성) |
 | 배포 | GitHub Actions → ECR `freshlink/logistics-simulator` → ArgoCD → EKS (파드 1개, 시연 때 사용) |
 
