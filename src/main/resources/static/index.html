@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FreshLink 물류 시뮬레이터</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; }
+    button { font-size: 18px; padding: 12px 20px; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 12px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>물류 시뮬레이터</h1>
+  <p>버튼을 누르면 시연 프리셋대로 점포마다 INBOUND 쪽지를 하나씩 보낸다.</p>
+  <h2>프리셋</h2>
+  <pre id="preset">불러오는 중…</pre>
+  <button id="ship">입고 보내기</button>
+  <h2>결과</h2>
+  <pre id="result">아직 보내지 않았다</pre>
+  <script>
+    const show = (id, value) => { document.getElementById(id).textContent = JSON.stringify(value, null, 2); };
+    fetch('simulator/preset').then(r => r.json()).then(v => show('preset', v))
+      .catch(e => { document.getElementById('preset').textContent = '불러오기 실패: ' + e; });
+    document.getElementById('ship').addEventListener('click', async () => {
+      const button = document.getElementById('ship');
+      button.disabled = true;
+      try {
+        const res = await fetch('simulator/shipments', { method: 'POST' });
+        const body = await res.json();
+        show('result', res.ok ? body : { status: res.status, body });
+      } catch (e) {
+        document.getElementById('result').textContent = '실패: ' + e;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
