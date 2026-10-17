@@ -1,0 +1,38 @@
+// logistics-simulator 빌드 설정. 팀 공통 기준: Java 21, Spring Boot 4.0.8, Gradle Wrapper 9.x.
+// 지금은 dev 배포(할 일 9)를 위한 뼈대다. INBOUND 발송(common InboundMessage, Spring Cloud AWS SQS)은 할 일 12에서 넣는다.
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.8'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.freshlink'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'        // 입고 실행 API (할 일 12)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'      // /actuator/health
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'                  // /actuator/prometheus
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
