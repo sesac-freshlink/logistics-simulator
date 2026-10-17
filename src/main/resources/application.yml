@@ -1,7 +1,20 @@
-# logistics-simulator 기본 설정 (뼈대)
+# logistics-simulator 기본 설정 (뼈대). 실제 값은 환경 변수로 넣는다.
+# 프로필은 dev·prod 두 개. SPRING_PROFILES_ACTIVE로 고른다. 큐 이름 앞부분은 QUEUE_PREFIX(할 일 12에서 쓴다).
 server:
   port: 8080
 
 spring:
   application:
     name: logistics-simulator
+  jackson:
+    time-zone: Asia/Seoul         # 시각은 ISO-8601 +09:00
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true             # /actuator/health/liveness, /readiness

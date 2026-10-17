@@ -67,7 +67,7 @@ logistics-simulator/
 
 ## 5. dev 환경에서 실행하기
 
-> 아직 뼈대만 있는 상태다. 첫 작업으로 [Spring Initializr](https://start.spring.io)에서 Gradle·Java 21·Web으로 프로젝트를 만들고 Spring Cloud AWS SQS를 추가한다.
+> Spring 뼈대(Boot 4.0.8, Web, Actuator)와 CI(`.github/workflows/ci.yml`)까지 있다. dev에 배포되어 `/actuator/health`가 응답한다. 입고 API와 SQS 발송(Spring Cloud AWS SQS, common `InboundMessage`)은 할 일 12에서 넣는다.
 
 개발할 때도 AWS dev 환경의 RDS·SQS·Cognito를 그대로 쓴다. AWS 로그인, DB 포트 포워딩(SSM), 개인 큐 설정은 [개발 환경 접속 가이드](https://github.com/sesac-freshlink/.github/blob/main/docs/개발환경-접속.md)를 따른다.
 
