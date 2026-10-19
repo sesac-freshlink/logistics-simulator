@@ -96,6 +96,12 @@ gateway에 라우트가 없어서 밖에서는 닿지 않는다. 시연 때는 p
 3. 브라우저에서 `http://localhost:8085`를 열고 **입고 보내기**를 누른다. 결과에 점포 3곳의 shipmentId가 나오면 성공이다.
 4. 버튼 대신 `Invoke-RestMethod -Method Post http://localhost:8085/simulator/shipments`로 보내도 된다.
 
+### 입고 버튼 화면
+
+![물류 시뮬레이터 입고 버튼 화면](docs/images/simulator-screen.png)
+
+위쪽 **프리셋**에 보낼 큐와 점포·상품이 나오고, **입고 보내기**를 누르면 아래 **결과**에 응답이 그대로 찍힌다. 정상이면 `status: 202`와 점포 3곳의 shipmentId가 나온다. (이 캡처의 500은 sts 의존성을 넣기 전([#7](https://github.com/sesac-freshlink/logistics-simulator/pull/7)) 파드가 AWS 자격을 못 받아 난 오류다.)
+
 ### PC에서 띄우기 (개인 큐로)
 
 개발할 때도 AWS dev 환경을 그대로 쓴다. AWS 로그인과 개인 큐는 [개발 환경 접속 가이드](https://github.com/sesac-freshlink/.github/blob/main/docs/개발환경-접속.md)를 따른다. common을 받으려면 환경 변수 `GITHUB_ACTOR`, `GITHUB_TOKEN`(`read:packages`)이 있어야 한다.
