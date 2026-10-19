@@ -42,6 +42,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'        // 입고 실행 API, 버튼 화면
     implementation 'org.springframework.boot:spring-boot-starter-validation'    // 요청 검증
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'             // SqsTemplate
+    runtimeOnly 'software.amazon.awssdk:sts'                                  // IRSA(웹 ID 토큰)로 AWS 자격 받기
     implementation 'org.springframework.boot:spring-boot-starter-actuator'      // /actuator/health
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'                  // /actuator/prometheus
 
