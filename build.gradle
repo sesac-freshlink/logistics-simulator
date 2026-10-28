@@ -1,0 +1,61 @@
+// logistics-simulator 빌드 설정. 팀 공통 기준: Java 21, Spring Boot 4.0.8, Gradle Wrapper 9.x.
+// 입고 API → common InboundMessage → Spring Cloud AWS SQS로 inventory-commands.fifo에 바로 보낸다 (DB가 없어 Outbox를 쓰지 않는다).
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.8'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.freshlink'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        // common 라이브러리 (GitHub Packages). 읽기에도 read:packages 토큰이 필요하다. 환경 변수 GITHUB_ACTOR, GITHUB_TOKEN
+        url = uri("https://maven.pkg.github.com/sesac-freshlink/common")
+        credentials {
+            username = System.getenv("GITHUB_ACTOR")
+            password = System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+ext {
+    set('springCloudAwsVersion', '4.2.0')   // Spring Cloud 2025.1(Boot 4.0) 기준. common과 같은 버전
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:${springCloudAwsVersion}"
+    }
+}
+
+dependencies {
+    implementation 'com.freshlink:common:0.1.1'                               // InboundMessage, MessageJson
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'        // 입고 실행 API, 버튼 화면
+    implementation 'org.springframework.boot:spring-boot-starter-validation'    // 요청 검증
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'             // SqsTemplate
+    runtimeOnly 'software.amazon.awssdk:sts'                                  // IRSA(웹 ID 토큰)로 AWS 자격 받기
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'      // /actuator/health
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'                  // /actuator/prometheus
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

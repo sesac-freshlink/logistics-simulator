@@ -1,7 +1,40 @@
-# logistics-simulator 기본 설정 (뼈대)
+# logistics-simulator 기본 설정. 실제 값은 환경 변수로 넣는다(클러스터에서는 gitops·ArgoCD가 넣는다).
+# 프로필은 dev·prod 두 개. SPRING_PROFILES_ACTIVE로 고른다.
 server:
-  port: 8084
+  port: 8080
 
 spring:
   application:
     name: logistics-simulator
+  jackson:
+    time-zone: Asia/Seoul         # 시각은 ISO-8601 +09:00
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
+      # 자격은 기본 체인(클러스터: IRSA, PC: aws login 프로필)
+
+simulator:
+  # 보낼 큐. 클러스터는 QUEUE_PREFIX=dev- (공용 큐), PC에서는 QUEUE_PREFIX=dev-<내 이름>- (개인 큐)
+  queue: ${QUEUE_PREFIX:dev-}inventory-commands.fifo
+  # 시연 프리셋: 요청 본문 없이 POST /simulator/shipments 하면 이대로 보낸다.
+  # 점포 ID·상품 코드는 dev 더미 데이터(infra scripts/seed/dev-*.sql)와 같다. 유통기한은 그날 23:59:59 한국 시간
+  preset:
+    store-ids: [1, 2, 3]
+    items:
+      - product-code: P016        # 순한 컵라면 110g
+        quantity: 20
+        expiry-date: 2026-10-20
+      - product-code: P012        # 흰 우유 500ml (유통기한 지난 재고 시연)
+        quantity: 10
+        expiry-date: 2026-10-09
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true             # /actuator/health/liveness, /readiness
