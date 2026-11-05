@@ -29,6 +29,29 @@ simulator:
         quantity: 10
         expiry-date: 2026-10-09
 
+  # 매일 시나리오 (3차 할 일 1-2, 1-4). 켜고 끄기·값은 gitops envs/<env>/logistics-simulator/values.yaml 환경 변수로 넣는다.
+  # dev는 입고만(주문 끔), prod는 주말 포함 매일 입고 09:20 + 주문 10:00–20:00
+  schedule:
+    enabled: ${SIMULATOR_SCHEDULE_ENABLED:false}
+    inbound-cron: ${SIMULATOR_INBOUND_CRON:0 20 9 * * MON-FRI}
+    inbound-on-startup: ${SIMULATOR_INBOUND_ON_STARTUP:true}
+    stores: ${SIMULATOR_STORES:}               # 비면 고객 단골 점포 전부. 예: 1,2,3
+    customers: ${SIMULATOR_CUSTOMERS:}         # "sub:4,7;sub:5" (External Secret)
+    orders:
+      enabled: ${SIMULATOR_ORDERS_ENABLED:false}
+      per-store-min: ${SIMULATOR_ORDERS_PER_STORE_MIN:2}
+      per-store-max: ${SIMULATOR_ORDERS_PER_STORE_MAX:3}
+      window-start: "10:00"
+      window-end: "20:00"
+      unpaid-rate: 0.05
+      cancel-rate: ${SIMULATOR_CANCEL_RATE:0}
+    pickup:
+      no-show-rate: 0.1
+    services:
+      order: ${ORDER_URL:http://order-service:8080}
+      inventory: ${INVENTORY_URL:http://inventory-service:8080}
+      member: ${MEMBER_URL:http://member-service:8080}
+
 management:
   endpoints:
     web:
