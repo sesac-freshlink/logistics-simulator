@@ -112,6 +112,32 @@ $env:QUEUE_PREFIX = "dev-taewoo-"   # 개인 큐 dev-taewoo-inventory-commands.f
 .\gradlew.bat bootRun
 ```
 
+## 5-1. 매일 데모 시나리오 (3차 할 일 1-2)
+
+prod를 켜 두면 사람이 손대지 않아도 하루 동안 입고 → 주문 → 결제 → 픽업 준비 → 픽업이 쌓인다. 대형 부하 테스트가 아니다(30곳 합쳐 하루 100–200건). 코드는 `schedule/` 패키지.
+
+| 시각(KST) | 하는 일 |
+| --- | --- |
+| 켜질 때 + `inbound-cron`(prod 매일 09:20) | 점포마다 오늘 입고. `shipmentId = SHP-<날짜>-AM-S<점포>`라 같은 날 다시 보내도 inventory가 한 번만 받는다. 상품 20–30개·수량 5–30개, 유통기한 = 오늘 + 분류별 며칠, 1–2개는 오늘 마감(임박 알림), 1개는 어제 마감(경과 알림) |
+| 10:00–20:00 (점심·저녁 두 배) | 가상 고객이 단골 점포에서 판매 중 상품 1개(선착순 제외)·1–3개 주문 → `PAYMENT_WAITING`이 되면 order `/ops/orders/{id}/simulated-payment`(토스 없음). 약 5%는 결제하지 않고 둔다(10분 뒤 `EXPIRED`) |
+| 결제 5–20분 뒤 / 준비 10–40분 뒤 | 점주 대신 픽업 준비 완료 / 픽업 확인. 10%는 픽업하지 않아 기한 경과가 생긴다 |
+
+- 같은 날짜면 같은 입고·같은 주문 계획이 나온다(난수 씨앗 = 점포·날짜). 진행 중인 주문은 메모리에만 있어 파드가 다시 뜨면 그날 남은 픽업 처리만 빠지고, 이미 지난 시각 주문은 건너뛴다.
+- order·inventory·member는 gateway를 거치지 않고 클러스터 안 Service 주소로 부르며 `X-User-*` 헤더를 직접 넣는다. 실패하면 로그만 남기고 다음으로 넘어간다.
+- 상태: `GET /simulator/schedule` (오늘 입고한 점포, 계획·주문·결제 수, 다음 실행 시각).
+
+| 환경 변수 | 뜻 | dev | prod |
+| --- | --- | --- | --- |
+| `SIMULATOR_SCHEDULE_ENABLED` | 스케줄 전체 | `true` | `true` |
+| `SIMULATOR_INBOUND_CRON` | 아침 입고 (Spring cron) | `0 20 9 * * MON-FRI` | `0 20 9 * * *` |
+| `SIMULATOR_ORDERS_ENABLED` | 주문 시나리오 | `false` (필요할 때만) | `true` |
+| `SIMULATOR_ORDERS_PER_STORE_MIN`·`MAX` | 점포당 하루 주문 | 2·3 | 3·6 |
+| `SIMULATOR_STORES` | 대상 점포 (비면 고객 단골 점포 전부) | `1,2,3` | 비움(1–30) |
+| `SIMULATOR_CUSTOMERS` | 가상 고객 `sub:점포,점포;…` | External Secret `freshlink-dev/simulator/customers` | `freshlink-prod/simulator/customers` |
+| `SIMULATOR_CANCEL_RATE` | 결제 뒤 고객 취소 비율 | 0 | 0 (켜면 SIM- 환불) |
+
+고객 비밀은 infra `scripts/seed-cognito.ps1`이 만든다(비밀번호 없음). order에는 `SIMULATED_PAYMENT_ENABLED=true`가 있어야 결제 완료 API가 열린다.
+
 ## 6. 브랜치와 기여
 
 - `main`(배포) ← `dev`(통합, 기본 브랜치) ← `feat/<기능ID>-<설명>` (예: `feat/E-13-inbound-publisher`)
