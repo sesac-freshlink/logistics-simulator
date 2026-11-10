@@ -107,21 +107,39 @@ final class InboundPlanner {
         return InboundMessage.of(storeId, shipmentId(storeId, date), items);
     }
 
-    /** 이 점포가 받을 신상품 perStore개 (점포마다 고정) */
+    /** 이 점포가 받을 신상품 (early가 꺼져 있으면 시연일 배지용만, 켜져 있으면 6개 전부) */
     static List<Catalog.Product> launched(long storeId, ScheduleProperties.Launch launch) {
         if (launch == null || !launch.enabled()) {
             return List.of();
         }
-        List<Catalog.Product> products = new ArrayList<>(Catalog.LAUNCH);
-        Collections.shuffle(products, new Random(storeId * 7_919L + 13));
-        return List.copyOf(products.subList(0, Math.min(launch.perStore(), products.size())));
+        List<Catalog.Product> recent = recent(storeId, launch);
+        if (launch.earlyEnabled()) {
+            return List.copyOf(Catalog.LAUNCH);
+        }
+        return recent;
     }
 
-    /** 신상품이 이 점포에 처음 들어오는 날: from–to 사이에 점포·상품마다 나눈다 */
+    /** 시연일에 배지가 붙을 신상품 recentMin–recentMax개 (점포마다 고정) */
+    static List<Catalog.Product> recent(long storeId, ScheduleProperties.Launch launch) {
+        Random random = new Random(storeId * 7_919L + 13);
+        List<Catalog.Product> products = new ArrayList<>(Catalog.LAUNCH);
+        Collections.shuffle(products, random);
+        int min = Math.max(0, Math.min(launch.recentMin(), products.size()));
+        int max = Math.max(min, Math.min(launch.recentMax(), products.size()));
+        int count = min + random.nextInt(max - min + 1);
+        return List.copyOf(products.subList(0, count));
+    }
+
+    /**
+     * 신상품이 이 점포에 처음 들어오는 날. 시연일 배지용은 from–to, 나머지는 earlyFrom–earlyTo 사이에 점포·상품마다 나눈다
+     */
     static LocalDate launchDate(long storeId, Catalog.Product product, ScheduleProperties.Launch launch) {
-        long span = ChronoUnit.DAYS.between(launch.from(), launch.to()) + 1;
+        boolean recent = recent(storeId, launch).contains(product);
+        LocalDate from = recent ? launch.from() : launch.earlyFrom();
+        LocalDate to = recent ? launch.to() : launch.earlyTo();
+        long span = ChronoUnit.DAYS.between(from, to) + 1;
         long offset = Math.floorMod(storeId * 5 + product.id() * 3, span);
-        return launch.from().plusDays(offset);
+        return from.plusDays(offset);
     }
 
     private static InboundItem item(Catalog.Product p, int quantity, LocalDate expiry) {

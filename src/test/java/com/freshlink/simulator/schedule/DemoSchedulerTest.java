@@ -54,7 +54,7 @@ class DemoSchedulerTest {
 
     private ScheduleProperties props(boolean ordersEnabled, double noShow, boolean dispose, double clearanceRate) {
         return new ScheduleProperties(true, "0 20 9 * * *", false, List.of(4L), SUB + ":4", Duration.ofSeconds(20),
-                dispose, new ScheduleProperties.Launch(null, null, 3),
+                dispose, new ScheduleProperties.Launch(null, null, null, null, 2, 3),
                 new ScheduleProperties.Orders(ordersEnabled, 1, 1, LocalTime.of(10, 0), LocalTime.of(20, 0), 0, 0,
                         Duration.ofSeconds(30), clearanceRate),
                 new ScheduleProperties.Pickup(Duration.ofMinutes(5), Duration.ofMinutes(20), Duration.ofMinutes(10),

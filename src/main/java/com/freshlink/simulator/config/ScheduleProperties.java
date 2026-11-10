@@ -62,21 +62,33 @@ public record ScheduleProperties(
     }
 
     /**
-     * 시연용 신상품(Catalog.LAUNCH) 첫 입고. 점포마다 perStore개를 골라 from–to 사이 날짜에 나눠 처음 입고하고, 그 뒤로는 다른 상품처럼 채운다.
-     * 고객 화면 신상품 배지는 점포 첫 입고 뒤 7일이라, 시연일 전 7일 안(예: 시연 11/20 → 11/14–11/19)으로 잡는다
+     * 시연용 신상품(Catalog.LAUNCH) 첫 입고. 점포마다 6개를 모두 넣는다(고객 목록은 상품 전체를 보여 주고 재고가 없으면 품절로 보여 주므로).
+     * 그중 recentMin–recentMax개는 from–to(시연일 전 7일 안, 예: 11/14–11/19)에 처음 넣어 시연일에 신상품 배지가 붙고,
+     * 나머지는 earlyFrom–earlyTo(시연일 7일 전보다 앞, 예: 11/11–11/12)에 처음 넣어 시연일에는 배지가 끝나 있다.
+     * 고객 화면 신상품 배지는 점포 첫 입고 시각부터 7일이다(11/10 태우님 답). 첫 입고 뒤로는 다른 상품처럼 채운다
      *
-     * @param from     첫 입고 시작 날짜 (비면 끈다)
-     * @param to       첫 입고 끝 날짜
-     * @param perStore 점포마다 신상품 수
+     * @param from       시연일에 배지가 붙을 신상품의 첫 입고 시작 날짜 (비면 끈다)
+     * @param to         그 끝 날짜
+     * @param earlyFrom  시연일 전에 배지가 끝날 신상품의 첫 입고 시작 날짜 (비면 그 신상품은 넣지 않는다)
+     * @param earlyTo    그 끝 날짜
+     * @param recentMin  점포마다 from–to에 처음 넣는 신상품 최소 수
+     * @param recentMax  최대 수
      */
     public record Launch(
             LocalDate from,
             LocalDate to,
-            @DefaultValue("3") int perStore
+            LocalDate earlyFrom,
+            LocalDate earlyTo,
+            @DefaultValue("2") int recentMin,
+            @DefaultValue("3") int recentMax
     ) {
 
         public boolean enabled() {
-            return from != null && to != null && !to.isBefore(from) && perStore > 0;
+            return from != null && to != null && !to.isBefore(from);
+        }
+
+        public boolean earlyEnabled() {
+            return enabled() && earlyFrom != null && earlyTo != null && !earlyTo.isBefore(earlyFrom);
         }
     }
 

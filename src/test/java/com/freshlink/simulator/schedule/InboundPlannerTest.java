@@ -23,7 +23,8 @@ class InboundPlannerTest {
     private static final Map<String, Catalog.Product> BY_CODE = Stream.concat(Catalog.PRODUCTS.stream(), Catalog.LAUNCH.stream())
             .collect(Collectors.toMap(Catalog.Product::code, Function.identity()));
     private static final ScheduleProperties.Launch LAUNCH =
-            new ScheduleProperties.Launch(LocalDate.of(2026, 11, 14), LocalDate.of(2026, 11, 19), 3);
+            new ScheduleProperties.Launch(LocalDate.of(2026, 11, 14), LocalDate.of(2026, 11, 19),
+                    LocalDate.of(2026, 11, 11), LocalDate.of(2026, 11, 12), 2, 3);
 
     @Test
     void shipmentId는_날짜와_점포로_고정된다() {
@@ -83,13 +84,24 @@ class InboundPlannerTest {
     }
 
     @Test
-    void 신상품은_점포마다_3개를_기간_안_정해진_날_처음_넣고_그_뒤로_계속_채운다() {
+    void 신상품은_점포마다_6개를_모두_넣고_2_3개만_시연일_7일_안에_처음_넣는다() {
+        LocalDate demo = LocalDate.of(2026, 11, 20);
         for (long store = 1; store <= 30; store++) {
             List<Catalog.Product> launched = InboundPlanner.launched(store, LAUNCH);
-            assertThat(launched).hasSize(3).doesNotHaveDuplicates();
+            assertThat(launched).hasSize(6).doesNotHaveDuplicates();
+            List<Catalog.Product> recent = InboundPlanner.recent(store, LAUNCH);
+            assertThat(recent).hasSizeBetween(2, 3);
             for (Catalog.Product p : launched) {
                 LocalDate first = InboundPlanner.launchDate(store, p, LAUNCH);
-                assertThat(first).isBetween(LAUNCH.from(), LAUNCH.to());
+                if (recent.contains(p)) {
+                    assertThat(first).isBetween(LAUNCH.from(), LAUNCH.to());
+                    // 시연일에 배지(첫 입고 시각부터 7일)가 아직 붙어 있다
+                    assertThat(first.plusDays(7)).isAfter(demo);
+                } else {
+                    assertThat(first).isBetween(LAUNCH.earlyFrom(), LAUNCH.earlyTo());
+                    // 09:20 첫 입고 + 7일이 시연일 아침 전에 끝난다
+                    assertThat(first.plusDays(7)).isBefore(demo);
+                }
                 // 첫날 전에는 없다
                 assertThat(InboundPlanner.plan(store, first.minusDays(1), Map.of(), LAUNCH).items())
                         .extracting(InboundItem::productCode).doesNotContain(p.code());
@@ -106,7 +118,14 @@ class InboundPlannerTest {
 
     @Test
     void 기간이_비면_신상품을_넣지_않는다() {
-        assertThat(InboundPlanner.launched(1, new ScheduleProperties.Launch(null, null, 3))).isEmpty();
+        assertThat(InboundPlanner.launched(1, new ScheduleProperties.Launch(null, null, null, null, 2, 3))).isEmpty();
         assertThat(InboundPlanner.launched(1, null)).isEmpty();
+    }
+
+    @Test
+    void 앞_기간이_비면_시연일_배지용만_넣는다() {
+        ScheduleProperties.Launch recentOnly =
+                new ScheduleProperties.Launch(LAUNCH.from(), LAUNCH.to(), null, null, 2, 3);
+        assertThat(InboundPlanner.launched(1, recentOnly)).isEqualTo(InboundPlanner.recent(1, recentOnly));
     }
 }

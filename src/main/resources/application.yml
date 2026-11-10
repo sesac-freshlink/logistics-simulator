@@ -39,11 +39,15 @@ simulator:
     customers: ${SIMULATOR_CUSTOMERS:}         # "sub:4,7;sub:5" (External Secret)
     # 아침 cron 입고 직전에 점주 대신 경과 lot 한 번에 폐기 (dev는 팀원이 폐기를 시험하므로 끈다, prod만 켠다)
     dispose-expired: ${SIMULATOR_DISPOSE_EXPIRED:false}
-    # 시연용 신상품(P031–P036) 첫 입고 기간. 비면 끈다. 상품 행(infra scripts/seed/<env>-inventory.sql)이 있는 환경에서만 켠다
+    # 시연용 신상품(P031–P036) 첫 입고. 점포마다 6개 모두: recent-min–max개는 from–to(시연일 배지), 나머지는 early-from–to(배지가 시연일 전에 끝남).
+    # 비면 끈다. 상품 행(infra scripts/seed/<env>-inventory.sql)이 있는 환경에서만 켠다
     launch:
       from: ${SIMULATOR_LAUNCH_FROM:}
       to: ${SIMULATOR_LAUNCH_TO:}
-      per-store: ${SIMULATOR_LAUNCH_PER_STORE:3}
+      early-from: ${SIMULATOR_LAUNCH_EARLY_FROM:}
+      early-to: ${SIMULATOR_LAUNCH_EARLY_TO:}
+      recent-min: ${SIMULATOR_LAUNCH_RECENT_MIN:2}
+      recent-max: ${SIMULATOR_LAUNCH_RECENT_MAX:3}
     orders:
       enabled: ${SIMULATOR_ORDERS_ENABLED:false}
       per-store-min: ${SIMULATOR_ORDERS_PER_STORE_MIN:2}
