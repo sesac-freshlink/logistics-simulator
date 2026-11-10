@@ -37,6 +37,13 @@ simulator:
     inbound-on-startup: ${SIMULATOR_INBOUND_ON_STARTUP:true}
     stores: ${SIMULATOR_STORES:}               # 비면 고객 단골 점포 전부. 예: 1,2,3
     customers: ${SIMULATOR_CUSTOMERS:}         # "sub:4,7;sub:5" (External Secret)
+    # 아침 cron 입고 직전에 점주 대신 경과 lot 한 번에 폐기 (dev는 팀원이 폐기를 시험하므로 끈다, prod만 켠다)
+    dispose-expired: ${SIMULATOR_DISPOSE_EXPIRED:false}
+    # 시연용 신상품(P031–P036) 첫 입고 기간. 비면 끈다. 상품 행(infra scripts/seed/<env>-inventory.sql)이 있는 환경에서만 켠다
+    launch:
+      from: ${SIMULATOR_LAUNCH_FROM:}
+      to: ${SIMULATOR_LAUNCH_TO:}
+      per-store: ${SIMULATOR_LAUNCH_PER_STORE:3}
     orders:
       enabled: ${SIMULATOR_ORDERS_ENABLED:false}
       per-store-min: ${SIMULATOR_ORDERS_PER_STORE_MIN:2}
@@ -45,6 +52,7 @@ simulator:
       window-end: "20:00"
       unpaid-rate: 0.05
       cancel-rate: ${SIMULATOR_CANCEL_RATE:0}
+      clearance-rate: ${SIMULATOR_CLEARANCE_RATE:0.3}   # 마감세일로 사는 주문 비율 (06–23시, 마감세일 상품이 있을 때)
     pickup:
       no-show-rate: 0.1
     services:

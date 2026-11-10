@@ -20,8 +20,23 @@ public class ShopClient {
     static final String STORE_ID = "X-Store-Id";
     static final String IDEMPOTENCY_KEY = "Idempotency-Key";
 
-    /** inventory U-10 한 줄에서 쓰는 칸만 */
-    public record StoreProduct(Long productId, String name, int availableQuantity, boolean soldOut, boolean firstCome) {
+    /** 폐기 요청자(disposal.requested_by, 36자 안). 점주 화면에서 시뮬레이터가 한 폐기를 가려 볼 수 있게 고정 값 */
+    static final String SIMULATOR_USER = "logistics-simulator";
+
+    /**
+     * inventory U-10 한 줄에서 쓰는 칸만. availableQuantity = 기본 주문으로 살 수 있는 수량(24시간 안 lot 제외),
+     * clearanceQuantity = 마감세일 수량(옛 inventory는 칸이 없어 null)
+     */
+    public record StoreProduct(Long productId, String name, int availableQuantity, boolean soldOut, boolean firstCome,
+                               Integer clearanceQuantity) {
+
+        public int clearance() {
+            return clearanceQuantity == null ? 0 : clearanceQuantity;
+        }
+    }
+
+    /** inventory 경과 lot 한 번에 폐기 응답에서 쓰는 칸만 */
+    public record ExpiredDisposal(Integer lotCount, Integer quantity) {
     }
 
     /** member 점포 상세에서 쓰는 칸만 */
@@ -59,13 +74,33 @@ public class ShopClient {
     }
 
     public OrderView createOrder(String customerSub, long storeId, String storeName, long productId, int quantity) {
+        return createOrder(customerSub, storeId, storeName, productId, quantity, 0);
+    }
+
+    /** clearanceQuantity > 0이면 그만큼 마감세일로 산다(order 06–23시만 받는다) */
+    public OrderView createOrder(String customerSub, long storeId, String storeName, long productId, int quantity,
+                                 int clearanceQuantity) {
+        Map<String, Object> body = clearanceQuantity > 0
+                ? Map.of("storeId", storeId, "storeName", storeName, "productId", productId, "quantity", quantity,
+                        "clearanceQuantity", clearanceQuantity)
+                : Map.of("storeId", storeId, "storeName", storeName, "productId", productId, "quantity", quantity);
         return order.post().uri("/orders")
                 .header(IDEMPOTENCY_KEY, UUID.randomUUID().toString())
                 .header(USER_ID, customerSub)
                 .header(USER_ROLE, "CUSTOMER")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("storeId", storeId, "storeName", storeName, "productId", productId, "quantity", quantity))
+                .body(body)
                 .retrieve().body(OrderView.class);
+    }
+
+    /** 점주 대신 경과 lot 한 번에 폐기 (inventory S-32, 202). 재고는 DISPOSE 쪽지를 처리할 때 줄어든다 */
+    public ExpiredDisposal disposeExpired(long storeId) {
+        ExpiredDisposal body = inventory.post().uri("/owner/inventory/disposals/expired")
+                .header(USER_ID, SIMULATOR_USER)
+                .header(USER_ROLE, "OWNER")
+                .header(STORE_ID, Long.toString(storeId))
+                .retrieve().body(ExpiredDisposal.class);
+        return body == null ? new ExpiredDisposal(0, 0) : body;
     }
 
     public OrderView getOrder(String customerSub, long orderId) {

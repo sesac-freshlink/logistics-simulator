@@ -32,7 +32,7 @@ public class DemoScheduleConfig {
     }
 
     @Bean
-    DemoScheduleRunner demoScheduleRunner(DemoScheduler scheduler, ScheduleProperties props) {
-        return new DemoScheduleRunner(scheduler, props);
+    DemoScheduleRunner demoScheduleRunner(DemoScheduler scheduler, ScheduleProperties props, Clock clock) {
+        return new DemoScheduleRunner(scheduler, props, clock);
     }
 }
