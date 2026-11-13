@@ -13,6 +13,7 @@ import java.util.Random;
 /**
  * 하루 주문 계획. 난수 씨앗이 날짜라 같은 날 다시 만들어도 같은 계획이 나온다(파드가 다시 떠도 지난 시각 주문은 건너뛴다).
  * 점포마다 perStoreMin–Max건, 시각은 주문 시간 안에서 점심(11:30–13:30)·저녁(17:30–19:30)에 두 배로 몰린다.
+ * clearanceRate 비율은 마감세일로 사려는 주문이다(마감세일 상품이 없으면 기본 주문으로 산다).
  */
 final class OrderPlanner {
 
@@ -22,7 +23,7 @@ final class OrderPlanner {
     static final LocalTime DINNER_END = LocalTime.of(19, 30);
 
     record PlannedOrder(int seq, LocalDateTime at, long storeId, String customerSub, int quantity,
-                        boolean unpaid, boolean noShow, boolean cancel, long seed) {
+                        boolean unpaid, boolean noShow, boolean cancel, boolean clearance, long seed) {
     }
 
     private OrderPlanner() {
@@ -46,8 +47,11 @@ final class OrderPlanner {
                 boolean unpaid = random.nextDouble() < orders.unpaidRate();
                 boolean cancel = !unpaid && random.nextDouble() < orders.cancelRate();
                 boolean noShow = !unpaid && !cancel && random.nextDouble() < pickup.noShowRate();
-                plan.add(new PlannedOrder(seq++, date.atTime(time), storeId, customer.sub(), 1 + random.nextInt(3),
-                        unpaid, noShow, cancel, random.nextLong()));
+                int quantity = 1 + random.nextInt(3);
+                long seed = random.nextLong();
+                boolean clearance = random.nextDouble() < orders.clearanceRate();
+                plan.add(new PlannedOrder(seq++, date.atTime(time), storeId, customer.sub(), quantity,
+                        unpaid, noShow, cancel, clearance, seed));
             }
         }
         plan.sort(Comparator.comparing(PlannedOrder::at).thenComparing(PlannedOrder::seq));

@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -17,6 +18,9 @@ import java.util.List;
  * @param stores           대상 점포 ID (infra 시드 점포). 비면 고객 단골 점포 전부
  * @param customers        가상 고객 "sub:점포,점포;sub:점포" (Secrets Manager → External Secrets → SIMULATOR_CUSTOMERS)
  * @param tick             주문·픽업 처리를 확인하는 간격
+ * @param disposeExpired   아침 입고(cron) 직전에 점포마다 점주 대신 "경과 lot 한 번에 폐기"를 부른다.
+ *                         dev는 팀원이 폐기를 시험하므로 끄고 prod만 켠다 (11/10)
+ * @param launch           시연용 신상품 첫 입고 기간 (비면 신상품을 입고하지 않는다)
  */
 @ConfigurationProperties("simulator.schedule")
 public record ScheduleProperties(
@@ -26,6 +30,8 @@ public record ScheduleProperties(
         @DefaultValue List<Long> stores,
         @DefaultValue("") String customers,
         @DefaultValue("20s") Duration tick,
+        @DefaultValue("false") boolean disposeExpired,
+        @DefaultValue Launch launch,
         @DefaultValue Orders orders,
         @DefaultValue Pickup pickup,
         @DefaultValue Services services
@@ -40,6 +46,7 @@ public record ScheduleProperties(
      * @param unpaidRate       결제하지 않고 두는 비율 (10분 뒤 EXPIRED)
      * @param cancelRate       결제 뒤 고객이 취소·환불하는 비율 (order SIM- 환불이 된 환경에서만 켠다)
      * @param paymentWait      주문 뒤 PAYMENT_WAITING이 될 때까지 기다리는 최대 시간
+     * @param clearanceRate    마감세일(24시간 안 lot, 06–23시)로 사는 주문 비율. 마감세일 상품이 없으면 기본 주문으로 산다
      */
     public record Orders(
             @DefaultValue("false") boolean enabled,
@@ -49,8 +56,40 @@ public record ScheduleProperties(
             @DefaultValue("20:00") LocalTime windowEnd,
             @DefaultValue("0.05") double unpaidRate,
             @DefaultValue("0") double cancelRate,
-            @DefaultValue("30s") Duration paymentWait
+            @DefaultValue("30s") Duration paymentWait,
+            @DefaultValue("0") double clearanceRate
     ) {
+    }
+
+    /**
+     * 시연용 신상품(Catalog.LAUNCH) 첫 입고. 점포마다 6개를 모두 넣는다(고객 목록은 상품 전체를 보여 주고 재고가 없으면 품절로 보여 주므로).
+     * 그중 recentMin–recentMax개는 from–to(시연일 전 7일 안, 예: 11/14–11/19)에 처음 넣어 시연일에 신상품 배지가 붙고,
+     * 나머지는 earlyFrom–earlyTo(시연일 7일 전보다 앞, 예: 11/11–11/12)에 처음 넣어 시연일에는 배지가 끝나 있다.
+     * 고객 화면 신상품 배지는 점포 첫 입고 시각부터 7일이다(11/10 태우님 답). 첫 입고 뒤로는 다른 상품처럼 채운다
+     *
+     * @param from       시연일에 배지가 붙을 신상품의 첫 입고 시작 날짜 (비면 끈다)
+     * @param to         그 끝 날짜
+     * @param earlyFrom  시연일 전에 배지가 끝날 신상품의 첫 입고 시작 날짜 (비면 그 신상품은 넣지 않는다)
+     * @param earlyTo    그 끝 날짜
+     * @param recentMin  점포마다 from–to에 처음 넣는 신상품 최소 수
+     * @param recentMax  최대 수
+     */
+    public record Launch(
+            LocalDate from,
+            LocalDate to,
+            LocalDate earlyFrom,
+            LocalDate earlyTo,
+            @DefaultValue("2") int recentMin,
+            @DefaultValue("3") int recentMax
+    ) {
+
+        public boolean enabled() {
+            return from != null && to != null && !to.isBefore(from);
+        }
+
+        public boolean earlyEnabled() {
+            return enabled() && earlyFrom != null && earlyTo != null && !earlyTo.isBefore(earlyFrom);
+        }
     }
 
     /** 결제 뒤 픽업 준비, 준비 뒤 픽업 확인까지 걸리는 시간(사이 값을 고른다)과 픽업하지 않는 비율 */

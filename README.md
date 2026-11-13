@@ -118,11 +118,14 @@ prod를 켜 두면 사람이 손대지 않아도 하루 동안 입고 → 주문
 
 | 시각(KST) | 하는 일 |
 | --- | --- |
-| 켜질 때 + `inbound-cron`(prod 매일 09:20) | 점포마다 오늘 입고. `shipmentId = SHP-<날짜>-AM-S<점포>`라 같은 날 다시 보내도 inventory가 한 번만 받는다. 상품 20–30개·수량 5–30개, 유통기한 = 오늘 + 분류별 며칠, 1–2개는 오늘 마감(임박 알림), 1개는 어제 마감(경과 알림) |
-| 10:00–20:00 (점심·저녁 두 배) | 가상 고객이 단골 점포에서 판매 중 상품 1개(선착순 제외)·1–3개 주문 → `PAYMENT_WAITING`이 되면 order `/ops/orders/{id}/simulated-payment`(토스 없음). 약 5%는 결제하지 않고 둔다(10분 뒤 `EXPIRED`) |
+| `inbound-cron`(prod 매일 09:20) | ① `SIMULATOR_DISPOSE_EXPIRED=true`면 점포마다 점주 대신 경과 lot 한 번에 폐기(inventory `POST /owner/inventory/disposals/expired`, 요청자 `logistics-simulator`). ② 점포마다 오늘 입고. `shipmentId = SHP-<날짜>-AM-S<점포>`라 같은 날 다시 보내도 inventory가 한 번만 받는다 |
+| 켜질 때 | 오늘 `inbound-cron` 시각이 이미 지났으면 ②만(폐기 안 함). 아직 전이면 cron을 기다린다(cron 전에 넣으면 cron 폐기가 어제 마감 시연 lot까지 지운다) |
+| 10:00–20:00 (점심·저녁 두 배) | 가상 고객이 단골 점포에서 판매 중 상품 1개(선착순 제외)·1–3개 주문 → `PAYMENT_WAITING`이 되면 order `/ops/orders/{id}/simulated-payment`(토스 없음). 약 5%는 결제하지 않고 둔다(10분 뒤 `EXPIRED`). `SIMULATOR_CLEARANCE_RATE`(기본 30%)는 마감세일 수량이 있는 상품을 마감세일(`clearanceQuantity`)로 산다(06–23시, 없으면 기본 주문) |
 | 결제 5–20분 뒤 / 준비 10–40분 뒤 | 점주 대신 픽업 준비 완료 / 픽업 확인. 10%는 픽업하지 않아 기한 경과가 생긴다 |
 
-- 같은 날짜면 같은 입고·같은 주문 계획이 나온다(난수 씨앗 = 점포·날짜). 진행 중인 주문은 메모리에만 있어 파드가 다시 뜨면 그날 남은 픽업 처리만 빠지고, 이미 지난 시각 주문은 건너뛴다.
+- 입고량(11/10): 고객 상품 목록의 `availableQuantity`(기본 주문으로 살 수 있는 수량)를 보고 목표만큼만 채운다. 도시락·김밥·샌드위치·샐러드는 그날 40%만 1–3개(유통기한 1–2일), 빵·유제품·디저트·과일·신선식품 2–4개, 오래가는 상품 4–8개. 시연용으로 1–2개는 오늘 마감 2–4개(임박 알림·마감세일), 1개는 어제 마감 1–3개(점주 경과 탭·폐기). 예전(상품 20–30개 × 5–30개)은 판매보다 훨씬 많아 경과 lot이 쌓였다.
+- 신상품(11/10): 점포마다 P031–P036 6개를 모두 처음 입고(4–6개)하고 그 뒤로 계속 채운다. 고객 상품 목록은 상품 전체를 보여 주고 재고가 없으면 품절로 보여 주므로 6개를 다 넣는다. 고객 화면 신상품 배지는 그 점포의 첫 입고 시각부터 7일이라, 2–3개(`SIMULATOR_LAUNCH_RECENT_MIN`·`MAX`)는 시연일 전 7일 안(`SIMULATOR_LAUNCH_FROM`·`TO`)에, 나머지 3–4개는 그보다 앞(`SIMULATOR_LAUNCH_EARLY_FROM`·`TO`)에 처음 넣어 시연일에는 2–3개만 신상품으로 뜬다. 앞 기간이 비면 시연일 배지용 2–3개만 넣는다. 상품 행(infra `scripts/seed/<env>-inventory.sql`)이 먼저 있어야 한다. 없는 상품 코드가 오면 그 입고 쪽지 전체가 실패한다.
+- 같은 날짜면 같은 입고·같은 주문 계획이 나온다(난수 씨앗 = 점포·날짜, 입고는 같은 재고일 때). 진행 중인 주문은 메모리에만 있어 파드가 다시 뜨면 그날 남은 픽업 처리만 빠지고, 이미 지난 시각 주문은 건너뛴다.
 - order·inventory·member는 gateway를 거치지 않고 클러스터 안 Service 주소로 부르며 `X-User-*` 헤더를 직접 넣는다. 실패하면 로그만 남기고 다음으로 넘어간다.
 - 상태: `GET /simulator/schedule` (오늘 입고한 점포, 계획·주문·결제 수, 다음 실행 시각).
 
@@ -135,6 +138,11 @@ prod를 켜 두면 사람이 손대지 않아도 하루 동안 입고 → 주문
 | `SIMULATOR_STORES` | 대상 점포 (비면 고객 단골 점포 전부) | `1,2,3` | 비움(1–30) |
 | `SIMULATOR_CUSTOMERS` | 가상 고객 `sub:점포,점포;…` | External Secret `freshlink-dev/simulator/customers` | `freshlink-prod/simulator/customers` |
 | `SIMULATOR_CANCEL_RATE` | 결제 뒤 고객 취소 비율 | 0 | 0 (켜면 SIM- 환불) |
+| `SIMULATOR_CLEARANCE_RATE` | 마감세일로 사는 주문 비율 | 0.3 (기본) | 0.3 (기본) |
+| `SIMULATOR_DISPOSE_EXPIRED` | 아침 cron 때 경과 lot 폐기 | `false` (팀원 폐기 시험) | `true` |
+| `SIMULATOR_LAUNCH_FROM`·`TO` | 시연일 배지용 신상품 첫 입고 기간 | 비움(끔) | `2026-11-14`·`2026-11-19` (시연 11/20) |
+| `SIMULATOR_LAUNCH_EARLY_FROM`·`TO` | 나머지 신상품 첫 입고 기간 (시연일 7일 전보다 앞) | 비움 | `2026-11-11`·`2026-11-12` |
+| `SIMULATOR_LAUNCH_RECENT_MIN`·`MAX` | 점포마다 시연일 배지용 신상품 수 | 2·3 | 2·3 |
 
 고객 비밀은 infra `scripts/seed-cognito.ps1`이 만든다(비밀번호 없음). order에는 `SIMULATED_PAYMENT_ENABLED=true`가 있어야 결제 완료 API가 열린다.
 
