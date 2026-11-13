@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrderPlannerTest {
 
     static final ScheduleProperties.Orders ORDERS = new ScheduleProperties.Orders(true, 3, 6,
-            LocalTime.of(10, 0), LocalTime.of(20, 0), 0.05, 0.03, Duration.ofSeconds(30));
+            LocalTime.of(10, 0), LocalTime.of(20, 0), 0.05, 0.03, Duration.ofSeconds(30), 0.3);
     static final ScheduleProperties.Pickup PICKUP = new ScheduleProperties.Pickup(Duration.ofMinutes(5),
             Duration.ofMinutes(20), Duration.ofMinutes(10), Duration.ofMinutes(40), 0.1);
     static final Customers CUSTOMERS = Customers.parse("a:1,2;b:2;c:3");
