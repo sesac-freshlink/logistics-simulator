@@ -59,7 +59,7 @@ class DemoSchedulerTest {
                         Duration.ofSeconds(30), clearanceRate),
                 new ScheduleProperties.Pickup(Duration.ofMinutes(5), Duration.ofMinutes(20), Duration.ofMinutes(10),
                         Duration.ofMinutes(40), noShow),
-                new ScheduleProperties.Services("http://order", "http://inventory", "http://member"));
+                new ScheduleProperties.Services("http://order", "http://inventory", "http://member"), 1, 0);
     }
 
     private DemoScheduler scheduler(ScheduleProperties props) {
