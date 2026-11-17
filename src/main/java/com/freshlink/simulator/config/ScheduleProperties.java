@@ -21,6 +21,8 @@ import java.util.List;
  * @param disposeExpired   아침 입고(cron) 직전에 점포마다 점주 대신 "경과 lot 한 번에 폐기"를 부른다.
  *                         dev는 팀원이 폐기를 시험하므로 끄고 prod만 켠다 (11/10)
  * @param launch           시연용 신상품 첫 입고 기간 (비면 신상품을 입고하지 않는다)
+ * @param inboundScale     아침 입고 목표 수량 배수(기본 1). dev는 팀원이 화면을 시험하며 사 가므로 넉넉히 넣는다(11/17 태우님 요청)
+ * @param clearanceLots    매일 더 넣는 "내일 마감"(기한 1일) lot 수(기본 0). 자정부터 다음 날까지 마감세일이 끊기지 않게 한다
  */
 @ConfigurationProperties("simulator.schedule")
 public record ScheduleProperties(
@@ -34,7 +36,9 @@ public record ScheduleProperties(
         @DefaultValue Launch launch,
         @DefaultValue Orders orders,
         @DefaultValue Pickup pickup,
-        @DefaultValue Services services
+        @DefaultValue Services services,
+        @DefaultValue("1") double inboundScale,
+        @DefaultValue("0") int clearanceLots
 ) {
 
     /**

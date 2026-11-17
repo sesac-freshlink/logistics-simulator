@@ -25,6 +25,7 @@ import java.util.Set;
  *       도시락·김밥·샌드위치·샐러드는 그날 40% 정도만 1–3개, 빵·유제품·디저트·과일·신선은 2–4개, 오래가는 상품은 4–8개</li>
  *   <li>1–2개는 오늘 마감(2–4개) → 임박 알림·마감세일, 1개는 어제 마감(1–3개) → 판매에서 빠지고 점주 경과 탭·폐기(11/5 태우님 답)</li>
  *   <li>시연용 신상품(Catalog.LAUNCH)은 점포마다 정해진 날 처음 들어온다({@link #launchDate}). 첫날은 4–6개</li>
+ *   <li>11/17: scale(목표 수량 배수)과 clearanceLots(내일 마감 lot 추가 수)를 dev에서 키운다. 기본값(1, 0)이면 예전과 같은 입고가 나온다</li>
  *   <li>shipmentId = SHP-yyyyMMdd-AM-S점포: 같은 날 두 번 보내도 inventory가 한 번만 받는다</li>
  * </ul>
  */
@@ -51,6 +52,15 @@ final class InboundPlanner {
      * @param launch 신상품 첫 입고 기간 (null이거나 꺼져 있으면 신상품 없음)
      */
     static InboundMessage plan(long storeId, LocalDate date, Map<Long, Integer> stock, ScheduleProperties.Launch launch) {
+        return plan(storeId, date, stock, launch, 1, 0);
+    }
+
+    /**
+     * @param scale          목표 수량 배수 (오늘 마감·내일 마감 lot에도 곱한다, 어제 마감 lot은 그대로)
+     * @param clearanceLots  기한이 내일인 lot을 이만큼 더 넣는다 (자정 뒤 마감세일)
+     */
+    static InboundMessage plan(long storeId, LocalDate date, Map<Long, Integer> stock, ScheduleProperties.Launch launch,
+                               double scale, int clearanceLots) {
         Random random = new Random(storeId * 1_000_003L + date.toEpochDay());
         List<Catalog.Product> catalog = new ArrayList<>(Catalog.PRODUCTS);
         Set<String> launchingToday = new HashSet<>();
@@ -72,11 +82,13 @@ final class InboundPlanner {
                 .filter(p -> p.perishable() && !launchingToday.contains(p.code()))
                 .toList();
         int todayLots = 1 + random.nextInt(2);
-        for (int i = 0; i < todayLots + 1 && i < demo.size(); i++) {
+        for (int i = 0; i < todayLots + 1 + Math.max(0, clearanceLots) && i < demo.size(); i++) {
             Catalog.Product p = demo.get(i);
-            boolean today = i < todayLots;
-            int quantity = today ? 2 + random.nextInt(3) : 1 + random.nextInt(3);
-            items.add(item(p, quantity, today ? date : date.minusDays(1)));
+            if (i == todayLots) {
+                items.add(item(p, 1 + random.nextInt(3), date.minusDays(1)));
+            } else {
+                items.add(item(p, scaled(2 + random.nextInt(3), scale), i < todayLots ? date : date.plusDays(1)));
+            }
             used.add(p.code());
         }
 
@@ -97,7 +109,7 @@ final class InboundPlanner {
             } else {
                 target = 4 + random.nextInt(5);
             }
-            int quantity = target - Math.max(0, stock.getOrDefault(p.id(), 0));
+            int quantity = scaled(target, scale) - Math.max(0, stock.getOrDefault(p.id(), 0));
             if (quantity <= 0) {
                 continue;
             }
@@ -140,6 +152,10 @@ final class InboundPlanner {
         long span = ChronoUnit.DAYS.between(from, to) + 1;
         long offset = Math.floorMod(storeId * 5 + product.id() * 3, span);
         return from.plusDays(offset);
+    }
+
+    private static int scaled(int quantity, double scale) {
+        return Math.max(1, (int) Math.round(quantity * scale));
     }
 
     private static InboundItem item(Catalog.Product p, int quantity, LocalDate expiry) {

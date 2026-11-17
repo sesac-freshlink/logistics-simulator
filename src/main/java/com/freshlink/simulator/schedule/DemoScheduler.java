@@ -110,7 +110,8 @@ public class DemoScheduler {
                 }
             }
             try {
-                InboundMessage message = InboundPlanner.plan(storeId, date, stock(storeId), props.launch());
+                InboundMessage message = InboundPlanner.plan(storeId, date, stock(storeId), props.launch(),
+                        props.inboundScale(), props.clearanceLots());
                 publisher.publish(message);
                 inboundSent.put(storeId, message.shipmentId());
             } catch (RuntimeException e) {

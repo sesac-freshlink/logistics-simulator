@@ -128,4 +128,25 @@ class InboundPlannerTest {
                 new ScheduleProperties.Launch(LAUNCH.from(), LAUNCH.to(), null, null, 2, 3);
         assertThat(InboundPlanner.launched(1, recentOnly)).isEqualTo(InboundPlanner.recent(1, recentOnly));
     }
+
+    @Test
+    void 기본값_배수_1_추가_0이면_예전과_같고_dev_배수와_내일_마감_lot을_넣는다() {
+        for (long store = 1; store <= 7; store++) {
+            assertThat(InboundPlanner.plan(store, DAY, Map.of(), null, 1, 0).items())
+                    .isEqualTo(InboundPlanner.plan(store, DAY).items());
+            InboundMessage base = InboundPlanner.plan(store, DAY);
+            InboundMessage dev = InboundPlanner.plan(store, DAY, Map.of(), null, 4, 3);
+            assertThat(dev.items()).extracting(InboundItem::productCode).doesNotHaveDuplicates();
+            int baseTotal = base.items().stream().mapToInt(InboundItem::quantity).sum();
+            int devTotal = dev.items().stream().mapToInt(InboundItem::quantity).sum();
+            assertThat(devTotal).isGreaterThan(baseTotal * 3);
+            long tomorrow = dev.items().stream()
+                    .filter(i -> i.expiryDate().toLocalDate().equals(DAY.plusDays(1)) && BY_CODE.get(i.productCode()).perishable()
+                            && !BY_CODE.get(i.productCode()).shortShelf())
+                    .count();
+            assertThat(tomorrow).isGreaterThanOrEqualTo(1);
+            long yesterday = dev.items().stream().filter(i -> i.expiryDate().toLocalDate().equals(DAY.minusDays(1))).count();
+            assertThat(yesterday).isEqualTo(1);
+        }
+    }
 }
